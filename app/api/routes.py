@@ -8,33 +8,34 @@ router = APIRouter()
 
 @router.post("/analyze-slip", response_model=ParlayResponse)
 async def analyze_slip(file: UploadFile = File(...)):
-    # 1. Validate File
+    print(f"Received file: {file.filename}, type: {file.content_type}")
+    
     if not file.content_type.startswith("image/"):
         raise HTTPException(400, "File must be an image")
     
     image_bytes = await file.read()
     
     try:
-        # 2. AI Vision Extraction
         extracted_bets = await extract_bets_from_image(image_bytes)
         
-        if not extracted_bets:
-            raise HTTPException(400, "Could not detect any bets in the image.")
+        print(f"Extracted Bets: {extracted_bets}")
 
-        # 3. Parallel Processing (Fast!)
-        # We analyze all bets in the slip at the same time
+        if not extracted_bets:
+            raise HTTPException(400, "Could not detect any bets. Try a clearer image.")
+
         analysis_tasks = [analyze_single_bet(bet) for bet in extracted_bets]
         analyzed_bets = await asyncio.gather(*analysis_tasks)
         
-        # 4. Calculate Overall Score
-        avg_score = sum(b.confidence_score for b in analyzed_bets) // len(analyzed_bets)
+        avg_score = sum(b.confidence_score for b in analyzed_bets) // len(analyzed_bets) if analyzed_bets else 0
         
         return ParlayResponse(
             overall_parlay_score=avg_score,
             bets=analyzed_bets
         )
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        # Log error in production
-        print(f"Error: {e}")
-        raise HTTPException(500, f"Analysis failed: {str(e)}")
+        import traceback
+        traceback.print_exc() 
+        raise HTTPException(500, f"Server Error: {str(e)}")
