@@ -1,0 +1,3 @@
+# PARLAI
+
+This project aims to develop an innovative mobile app that helps users evaluate their sports betting choices by analyzing betting slips uploaded through the platform. The app will leverage cutting-edge OCR (Optical Character Recognition) technology to extract data from user-uploaded betting slip images and provide a comprehensive analysis of each bet’s risk and reliability.The core functionality of the app includes a score system that ranks each bet from 0 to 100 based on its perceived confidence. Higher scores indicate safer bets, while lower scores signal riskier picks. The app will also provide users with detailed insights into their betting choices, helping them make more informed decisions. 
