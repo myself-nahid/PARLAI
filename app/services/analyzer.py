@@ -1,69 +1,60 @@
 from app.schemas import ExtractedBet, BetAnalysis, StatComparison
-from app.services.stats import fetch_player_stats
+from app.services.sgo_client import get_player_history
 
 async def analyze_single_bet(bet: ExtractedBet) -> BetAnalysis:
-    # 1. Get Real Data
-    stats_data = await fetch_player_stats(bet.player_name, bet.sport, bet.prop_type)
+    data = await get_player_history(bet.player_name, bet.sport, bet.line)
     
-    # 2. The SCORING ALGORITHM
-    # Start at neutral 50
-    score = 50 
+    stats = data.get('stats', {})
     
-    # Weight 1: Season Average vs Line
-    if bet.operator == "Over":
-        if stats_data['season_avg'] > bet.line: score += 10
-        else: score -= 10
-    elif bet.operator == "Under":
-        if stats_data['season_avg'] < bet.line: score += 10
-        else: score -= 10
-        
-    # Weight 2: Recent Form (Last 5) - Heavier Weight
-    if bet.operator == "Over":
-        if stats_data['last_5_avg'] > bet.line: score += 15
-    elif bet.operator == "Under":
-        if stats_data['last_5_avg'] < bet.line: score += 15
-        
-    # Weight 3: Matchup
-    # If taking OVER, we want a BAD defense (High rank number, e.g. 28th)
-    if bet.operator == "Over" and stats_data['opponent_rank'] > 20:
-        score += 10
-    # If taking UNDER, we want a GOOD defense (Low rank number, e.g. 3rd)
-    if bet.operator == "Under" and stats_data['opponent_rank'] < 10:
-        score += 10
+    if not data['found']:
+        return BetAnalysis(
+            player_name=bet.player_name,
+            prop_description=f"{bet.prop_type} {bet.operator} {bet.line}",
+            confidence_score=50,
+            risk_level="Unknown",
+            insights=["Player not found in active roster."],
+            stats=StatComparison(season_avg=0, last_5_avg=0, opponent_rank=0, opponent_name="N/A"),
+            last_10_games=[]
+        )
 
-    # Cap Score
-    score = min(99, max(1, score))
+    # Scoring Logic
+    score = 50
+    season_avg = stats.get('season_avg', 0)
     
-    # 3. Generate Insights (Rule-based for speed, or use LLM for variety)
+    # Compare generated stats vs line
+    if bet.operator == "Over":
+        if season_avg > bet.line: score += 15
+        else: score -= 10
+    elif bet.operator == "Under":
+        if season_avg < bet.line: score += 15
+        else: score -= 10
+
+    # Insights
     insights = []
-    
-    diff = round(stats_data['season_avg'] - bet.line, 1)
+    diff = round(season_avg - bet.line, 1)
     if diff > 0 and bet.operator == "Over":
-        insights.append(f"Averaging {diff} points above the line.")
-    
-    if stats_data['opponent_rank'] > 25:
-        insights.append(f"Facing the {stats_data['opponent_rank']}th ranked defense (Favorable).")
-    elif stats_data['opponent_rank'] < 5:
-        insights.append(f"Facing a top 5 defense (Tough Matchup).")
+        insights.append(f"Trending {diff} points OVER the line recently.")
+    elif diff < 0 and bet.operator == "Over":
+        insights.append(f"Averaging {abs(diff)} points UNDER the line.")
         
-    insights.append(f"Last 5 Game Avg: {stats_data['last_5_avg']}")
+    insights.append(f"Season Avg: {season_avg}")
 
-    # 4. Determine Risk Label
+    # Risk Label
     risk = "Moderate"
-    if score >= 80: risk = "Safe"
+    if score >= 65: risk = "Safe"
     if score <= 40: risk = "Risky"
 
     return BetAnalysis(
-        player_name=bet.player_name,
+        player_name=data['name'],
         prop_description=f"{bet.prop_type} {bet.operator} {bet.line}",
         confidence_score=score,
         risk_level=risk,
         insights=insights,
         stats=StatComparison(
-            season_avg=stats_data['season_avg'],
-            last_5_avg=stats_data['last_5_avg'],
-            opponent_rank=stats_data['opponent_rank'],
-            opponent_name=stats_data['opponent_name']
+            season_avg=season_avg,
+            last_5_avg=season_avg, 
+            opponent_rank=15,
+            opponent_name=data.get('opponent', 'TBD')
         ),
-        last_10_games=stats_data['last_10_games']
+        last_10_games=stats.get('full_log', []) 
     )

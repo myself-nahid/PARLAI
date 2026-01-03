@@ -21,7 +21,7 @@ class BetAnalysis(BaseModel):
     risk_level: str
     insights: List[str]
     stats: StatComparison
-    last_10_games: List[int]
+    last_10_games: List[float]  
 
 class ParlayResponse(BaseModel):
     overall_parlay_score: int
