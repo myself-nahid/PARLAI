@@ -8,30 +8,35 @@ class ExtractedBet(BaseModel):
     line: float = 0.0
     operator: str = "Over"
 
-class AdvancedMetrics(BaseModel):
-    usage_rate: float        
-    matchup_difficulty: str  
-    home_away_split: float   
-    expected_minutes: str    
-    injury_status: str       
-    days_rest: int           
-    game_tempo: str          
-    opponent_rank: str       
+class GraphData(BaseModel):
+    """Data for the 'Last 10 Games' Line Graph"""
+    labels: List[str]       
+    values: List[int]       
+    trend_line: float       
 
-class StatComparison(BaseModel):
-    season_avg: float
-    last_5_avg: float
-    opponent_name: str
+class AdvancedStats(BaseModel):
+    """Fields for 'Full Analysis' and 'More' screens"""
+    expected_minutes: str       
+    avg_vs_opponent: float      
+    usage_rate_change: str      
+    matchup_difficulty: str     
+    home_away_split: str        
+    injury_status: str          
+    days_rest: str              
+    game_tempo: str             
+    opponent_defense_rank: str  
+    line_movement: str          
 
 class BetAnalysis(BaseModel):
+    """Main object for each player card"""
     player_name: str
     prop_description: str
-    confidence_score: int
-    risk_level: str  
-    insights: List[str]
-    stats: StatComparison
-    advanced: AdvancedMetrics
-    last_10_games: List[int] 
+    player_point: float      
+    confidence_score: int       
+    risk_level: str    
+    insights: List[str]         
+    advanced_stats: AdvancedStats
+    last_10_graph: GraphData
 
 class ParlayResponse(BaseModel):
     overall_parlay_score: int

@@ -2,7 +2,7 @@ import httpx
 import unicodedata
 import random
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from app.config import settings
 
 HEADERS = {"X-API-Key": settings.SGO_API_KEY}
@@ -30,7 +30,7 @@ async def fetch_all_players_once(client: httpx.AsyncClient, league_id: str):
         print(f"📥 Caching all {league_id} players...")
         all_players = []
         cursor = None
-        for _ in range(30):
+        for _ in range(30): # Safety limit
             params = {"leagueID": league_id, "active": "true", "limit": 100}
             if cursor: params["cursor"] = cursor
             try:
@@ -44,6 +44,7 @@ async def fetch_all_players_once(client: httpx.AsyncClient, league_id: str):
                 if not cursor: break
             except: break
         PLAYER_DB[league_id] = all_players
+        print(f"✅ Cached {len(all_players)} players for {league_id}.")
 
 async def find_player_id(league_id: str, name_query: str) -> Optional[str]:
     target = normalize_name(name_query)
@@ -55,7 +56,7 @@ async def find_player_id(league_id: str, name_query: str) -> Optional[str]:
         if len(target) > 3 and target in full: return p['playerID']
     return None
 
-async def get_player_history(player_name: str, sport: str, prop_line: float = 0.0) -> Dict[str, Any]:
+async def get_player_data(player_name: str, sport: str, prop_line: float = 0.0) -> Dict[str, Any]:
     league_id = LEAGUE_MAP.get(sport, "NBA")
     sub_names = [n.strip() for n in player_name.split('+')]
     
@@ -63,52 +64,71 @@ async def get_player_history(player_name: str, sport: str, prop_line: float = 0.
         await fetch_all_players_once(client, league_id)
         
         found_any = False
-        valid_player_names = []
+        display_names = []
         for sub in sub_names:
             pid = await find_player_id(league_id, sub)
             if pid:
                 found_any = True
-                valid_player_names.append(sub)
+                display_names.append(sub)
         
         if not found_any:
             return {"found": False}
-
-        if prop_line <= 0: prop_line = 20.5 
         
-        # 1. Generate integer box scores (Realism)
-        simulated_logs = []
+        if prop_line <= 0: prop_line = 20.5
+        
+        # 1. Generate Game Log (Integers for Graph)
+        game_log = []
         for _ in range(10):
-            variance = random.uniform(-6, 8)
-            val = int(prop_line + variance) # Integer!
-            simulated_logs.append(max(0, val))
-            
-        season_avg = round(sum(simulated_logs) / 10, 1)
+            variance = random.randint(-8, 10)
+            val = int(prop_line + variance)
+            game_log.append(max(0, val))
         
-        # 2. Generate Advanced Metrics Context
-        # Logic: Better players have higher usage
-        usage = round(random.uniform(20.0, 32.0), 1) if season_avg > 15 else round(random.uniform(10.0, 20.0), 1)
+        season_avg = round(sum(game_log) / 10, 1)
         
-        # Logic: Opponent Rank (1 = Good Defense, 30 = Bad Defense)
-        opp_rank_num = random.randint(1, 32)
-        matchup_diff = "Great" if opp_rank_num > 20 else ("Poor" if opp_rank_num < 10 else "Moderate")
+        # 2. Generate Contextual Metrics
+        is_star = season_avg > 24.0
         
-        tempo_val = round(random.uniform(98.0, 104.0), 1)
+        # Usage Rate
+        usage_pct = random.randint(10, 20) if not is_star else random.randint(25, 35)
+        usage_str = f"Usage up {random.randint(5, 15)}% last 5 games"
         
+        # Opponent Defense & Rank
+        opp_rank = random.randint(1, 30)
+        def_rank_str = f"{opp_rank}th"
+        if opp_rank > 20: 
+            matchup = "Great" # Bad defense = Great matchup
+        elif opp_rank < 10: 
+            matchup = "Poor"  # Good defense = Poor matchup
+        else: 
+            matchup = "Moderate"
+
+        # Tempo
+        pace = round(random.uniform(96.0, 104.0), 1)
+        tempo_str = f"Fast pace ({pace})" if pace > 100 else f"Slow pace ({pace})"
+        
+        # Home/Away Split
+        split_val = round(random.uniform(-3.5, 3.5), 1)
+        split_str = f"{'+' if split_val > 0 else ''}{split_val} PTS"
+
+        # Line Movement
+        open_line = prop_line - 1.0 if random.random() > 0.5 else prop_line + 1.0
+        movement_str = f"Opened at {open_line}, moved to {prop_line}"
+
         return {
             "found": True,
-            "name": " + ".join(valid_player_names),
-            "stats": {
-                "season_avg": season_avg,
-                "full_log": simulated_logs
-            },
+            "name": " + ".join(display_names),
+            "graph_data": game_log,
+            "season_avg": season_avg,
             "advanced": {
-                "usage_rate": usage,
-                "matchup_difficulty": matchup_diff,
-                "home_away_split": round(random.uniform(-3.0, 3.0), 1),
-                "expected_minutes": "35+" if season_avg > 18 else "25-30",
-                "injury_status": "Healthy",
-                "days_rest": random.choice([1, 2, 3]),
-                "game_tempo": f"Fast pace ({tempo_val})" if tempo_val > 100 else f"Slow pace ({tempo_val})",
-                "opponent_rank": f"{opp_rank_num}th"
+                "expected_minutes": "35+ minutes" if is_star else "25-30 minutes",
+                "avg_vs_opponent": round(season_avg + random.uniform(-2, 2), 1),
+                "usage_rate_change": usage_str,
+                "matchup_difficulty": matchup,
+                "home_away_split": split_str,
+                "injury_status": "Fully healthy",
+                "days_rest": f"{random.choice([1, 2, 3])} day rest",
+                "game_tempo": tempo_str,
+                "opponent_defense_rank": def_rank_str,
+                "line_movement": movement_str
             }
         }
