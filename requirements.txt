@@ -5,3 +5,7 @@ pydantic
 openai
 httpx
 python-dotenv
+duckduckgo-search
+nba_api
+nfl_data_py 
+pandas

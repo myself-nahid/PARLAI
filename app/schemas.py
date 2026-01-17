@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class ExtractedBet(BaseModel):
     player_name: str
@@ -10,7 +10,7 @@ class ExtractedBet(BaseModel):
 
 class GraphData(BaseModel):
     labels: List[str]
-    values: List[int]
+    values: List[float] 
     trend_line: float
 
 class AdvancedStats(BaseModel):
@@ -26,6 +26,7 @@ class AdvancedStats(BaseModel):
     line_movement: str
 
 class BetAnalysis(BaseModel):
+    sport: str                  
     player_name: str
     prop_description: str
     confidence_score: int
