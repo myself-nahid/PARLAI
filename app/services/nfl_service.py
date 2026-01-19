@@ -6,6 +6,21 @@ from datetime import datetime
 NFL_CACHE = {}
 INJURY_CACHE = {"data": None, "timestamp": None}
 
+def preload_nfl_data():
+    """Downloads heavy datasets into RAM on startup."""
+    current_year = 2024
+    try:
+        if current_year not in NFL_CACHE:
+            print("(Background) Downloading NFL Weekly Stats...")
+            NFL_CACHE[current_year] = nfl.import_weekly_data([current_year])
+            
+        if INJURY_CACHE["data"] is None:
+            print("(Background) Downloading NFL Injury Report...")
+            INJURY_CACHE["data"] = nfl.import_injuries([current_year])
+            INJURY_CACHE["timestamp"] = datetime.now()
+    except Exception as e:
+        print(f"Preload Warning: {e}")
+
 def get_nfl_injury_status(player_name: str) -> str:
     """
     Fetches the latest official injury report for the player.
@@ -40,7 +55,7 @@ def get_nfl_injury_status(player_name: str) -> str:
             return target in clean or clean in target
 
         # Find Player using the correct column
-        player_df = df[df[name_col].apply(name_match)]
+        player_df = df[df[name_col].apply(name_match)].copy()
         
         if player_df.empty:
             return "Fully Healthy" # Not on the report = Healthy
