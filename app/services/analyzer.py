@@ -11,6 +11,7 @@ async def analyze_single_bet(bet: ExtractedBet) -> BetAnalysis:
             prop_description=f"{bet.prop_type} {bet.operator} {bet.line}",
             confidence_score=50,
             risk_level="High Risk",
+            win_probability="55%",
             insights=["Player data unavailable."],
             advanced_stats=AdvancedStats(
                 expected_minutes="-", avg_vs_opponent=0.0, usage_rate_change="-",
@@ -67,6 +68,16 @@ async def analyze_single_bet(bet: ExtractedBet) -> BetAnalysis:
     elif score >= 60: risk = "Risky"
     else: risk = "High Risk"
 
+    '''
+    # CALCULATE INDIVIDUAL WIN PROBABILITY 
+    # Formula: Base 35% + (Score scaled to 40%)
+    # Score 99 -> 75% Win Prob
+    # Score 50 -> 55% Win Prob
+    # Score 10 -> 39% Win Prob
+    '''
+    prob_decimal = 0.35 + ((score / 100) * 0.40)
+    prob_str = f"{int(prob_decimal * 100)}%"
+
     insights = []
     if injury_warning: insights.append(injury_warning)
     
@@ -95,6 +106,7 @@ async def analyze_single_bet(bet: ExtractedBet) -> BetAnalysis:
         prop_description=f"{bet.prop_type} {bet.operator} {bet.line}",
         confidence_score=score,
         risk_level=risk,
+        win_probability=prob_str,
         insights=insights,
         advanced_stats=AdvancedStats(**adv_raw),
         market_insights=MarketInsights(**market_raw),

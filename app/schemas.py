@@ -50,6 +50,7 @@ class BetAnalysis(BaseModel):
     prop_description: str
     confidence_score: int
     risk_level: str
+    win_probability: str
     insights: List[str]
     
     advanced_stats: AdvancedStats
